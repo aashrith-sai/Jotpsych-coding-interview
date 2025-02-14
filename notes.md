@@ -9,6 +9,9 @@ To acheive this, I introduced a new state (isTranscribing) to track if the trans
 I Set isTranscribing to true while sending the audio for transcription. I added a loading message 
 while transcription is ongoing. I have reset isTranscribing to false when transcription is complete.
 
+PART-3
+For version compatibility I have added the AudioRecorder.tsx to use API service and added methods like @app.after_request and @app.before_request to validate and prompt users to reload the frontend.
+
 
 PART-6
 

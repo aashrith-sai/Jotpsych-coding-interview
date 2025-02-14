@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from "react";
+import APIService from "../services/APIService";
 
-const AudioRecorder = ({ onTranscriptionComplete }) => {
+interface TranscriptionData {
+  transcription: string;
+  category?: string;
+}
+
+const AudioRecorder = ({ onTranscriptionComplete }: { 
+  onTranscriptionComplete: (transcription: string) => void 
+}) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false); // New state for transcription status
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [finalRecordingTime, setFinalRecordingTime] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const MAX_RECORDING_TIME = 5;
 
@@ -19,10 +28,10 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
   };
 
   useEffect(() => {
-    let interval;
+    let interval: number | undefined;
 
     if (isRecording) {
-      interval = setInterval(() => {
+      interval = window.setInterval(() => {
         if (recordingTime >= MAX_RECORDING_TIME) {
           stopRecording();
         } else {
@@ -32,12 +41,13 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
     }
 
     return () => {
-      clearInterval(interval);
+      if (interval) window.clearInterval(interval);
     };
   }, [isRecording, recordingTime]);
 
   const startRecording = async () => {
     try {
+      setError(null);
       setRecordingTime(0);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -49,22 +59,27 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
 
       recorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob);
-
-        setIsTranscribing(true); // Start showing loading indicator
+        
+        setIsTranscribing(true);
 
         try {
-          const response = await fetch("http://localhost:8000/transcribe", {
-            method: "POST",
-            body: formData,
-          });
-          const data = await response.json();
-          onTranscriptionComplete(data.transcription);
+          const response = await APIService.transcribeAudio(audioBlob);
+          
+          if (response.error) {
+            setError(response.error);
+            console.error("Transcription error:", response.error);
+            return;
+          }
+
+          if (response.data) {
+            onTranscriptionComplete(response.data.transcription);
+          }
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          setError(errorMessage);
           console.error("Error sending audio:", error);
         } finally {
-          setIsTranscribing(false); // Hide loading indicator after transcription
+          setIsTranscribing(false);
         }
 
         stream.getTracks().forEach((track) => track.stop());
@@ -74,6 +89,8 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error accessing microphone';
+      setError(errorMessage);
       console.error("Error accessing microphone:", error);
     }
   };
@@ -85,6 +102,11 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
           Final recording time: {finalRecordingTime}s
         </p>
       )}
+      {error && (
+        <p className="text-sm text-red-600">
+          Error: {error}
+        </p>
+      )}
       <button
         onClick={isRecording ? stopRecording : startRecording}
         className={`px-6 py-3 rounded-lg font-semibold ${
@@ -92,7 +114,7 @@ const AudioRecorder = ({ onTranscriptionComplete }) => {
             ? "bg-red-500 hover:bg-red-600 text-white"
             : "bg-blue-500 hover:bg-blue-600 text-white"
         }`}
-        disabled={isTranscribing} // Disable button while transcribing
+        disabled={isTranscribing}
       >
         {isRecording
           ? `Stop Recording (${MAX_RECORDING_TIME - recordingTime}s)`

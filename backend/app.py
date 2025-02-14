@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import time
 import random
@@ -9,12 +9,42 @@ import os
 from typing import Dict, Optional, Literal
 
 app = Flask(__name__)
-CORS(app)
+
+CORS(
+    app,
+    resources={r"/*": {"origins": "*"}},
+    allow_headers=["*"],
+    expose_headers=["X-Server-Version"],
+    supports_credentials=True
+)
 
 
 load_dotenv()
-# TODO: Implement version tracking
+
 VERSION = "1.0.0"
+
+@app.after_request
+def add_version_header(response):
+    response.headers["X-Server-Version"] = VERSION
+    return response
+
+@app.before_request
+def check_frontend_version():
+    # Allow the preflight (OPTIONS) request to pass through
+    app.logger.info(f"Request method: {request}")
+    if request.method == "OPTIONS":
+        return  # Just return None, letting Flask-CORS handle it
+
+    frontend_version = request.headers.get("X-Frontend-Version")
+    if not frontend_version:
+        return make_response(jsonify({"error": "Missing X-Frontend-Version"}), 400)
+
+    if frontend_version != VERSION:
+        return make_response(jsonify({
+            "error": "Version mismatch. Your frontend is stale.",
+            "serverVersion": VERSION,
+            "frontendVersion": frontend_version
+        }), 426)
 
 user_model_cache = {}          # Caches user_id -> LLM model
 categorization_cache = {}      # Caches (transcription_string, user_id) -> classification result
@@ -25,8 +55,8 @@ def process_transcription(job_id: str, audio_data: bytes):
     time.sleep(random.randint(5, 20))
     return random.choice([
         "I've always been fascinated by cars, especially classic muscle cars from the 60s and 70s. The raw power and beautiful design of those vehicles is just incredible.",
-        # "Bald eagles are such majestic creatures. I love watching them soar through the sky and dive down to catch fish. Their white heads against the blue sky is a sight I'll never forget.",
-        # "Deep sea diving opens up a whole new world of exploration. The mysterious creatures and stunning coral reefs you encounter at those depths are unlike anything else on Earth."
+        "Bald eagles are such majestic creatures. I love watching them soar through the sky and dive down to catch fish. Their white heads against the blue sky is a sight I'll never forget.",
+        "Deep sea diving opens up a whole new world of exploration. The mysterious creatures and stunning coral reefs you encounter at those depths are unlike anything else on Earth."
     ])
 
 
@@ -152,8 +182,6 @@ def get_user_model_from_db(user_id: str) -> Literal["openai", "anthropic"]:
 @app.route('/transcribe', methods=['POST'])
 def transcribe_audio():
     result = process_transcription("xyz", "abcde")
-
-    # TODO: Implement categorization
 
     category = categorize_transcription(result, "user_id")
 
