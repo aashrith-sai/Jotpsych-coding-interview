@@ -16,20 +16,28 @@ load_dotenv()
 # TODO: Implement version tracking
 VERSION = "1.0.0"
 
+user_model_cache = {}          # Caches user_id -> LLM model
+categorization_cache = {}      # Caches (transcription_string, user_id) -> classification result
+
 
 def process_transcription(job_id: str, audio_data: bytes):
     """Mock function to simulate async transcription processing. Returns a random transcription."""
     time.sleep(random.randint(5, 20))
     return random.choice([
         "I've always been fascinated by cars, especially classic muscle cars from the 60s and 70s. The raw power and beautiful design of those vehicles is just incredible.",
-        "Bald eagles are such majestic creatures. I love watching them soar through the sky and dive down to catch fish. Their white heads against the blue sky is a sight I'll never forget.",
-        "Deep sea diving opens up a whole new world of exploration. The mysterious creatures and stunning coral reefs you encounter at those depths are unlike anything else on Earth."
+        # "Bald eagles are such majestic creatures. I love watching them soar through the sky and dive down to catch fish. Their white heads against the blue sky is a sight I'll never forget.",
+        # "Deep sea diving opens up a whole new world of exploration. The mysterious creatures and stunning coral reefs you encounter at those depths are unlike anything else on Earth."
     ])
 
 
 
 def categorize_transcription(transcription_string: str, user_id: str):
-    model_to_use = get_user_model_from_db(user_id)
+    cache_key = (transcription_string, user_id)
+    if cache_key in categorization_cache:
+        app.logger.info("Returning cached categorization result")
+        return categorization_cache[cache_key]
+
+    model_to_use = get_user_model_from_db_cached(user_id)
 
     if model_to_use == "openai":
         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -77,19 +85,11 @@ def categorize_transcription(transcription_string: str, user_id: str):
                 json_response = json.loads(raw_response)
             except json.JSONDecodeError:
                 # The LLM did not return valid JSON
-                return {
-                    "error": "Response was not valid JSON.",
-                    "raw_response": raw_response,
-                    "success": False
-                }
+                raise ValueError("Response was not valid JSON.")
 
             # Validate the presence of the "genre" key
             if "genre" not in json_response:
-                return {
-                    "error": "'genre' key missing in the JSON response.",
-                    "raw_response": raw_response,
-                    "success": False
-                }
+                raise ValueError("Response did not contain a 'genre' key.")
 
             genre = json_response["genre"]
             # Validate the genre against the list of valid genres
@@ -99,17 +99,14 @@ def categorize_transcription(transcription_string: str, user_id: str):
             ]
 
             if genre not in valid_genres:
-                return {
-                    "error": "Invalid genre returned",
-                    "genre": genre,
-                    "success": False
-                }
-
-
-            return {
+                raise ValueError(f"Invalid genre '{genre}'. Must be one of: {', '.join(valid_genres)}")
+            
+            result = {
                 "genre": genre,
                 "success": True
             }
+            categorization_cache[cache_key] = result
+            return result
 
         except Exception as e:
             return {
@@ -129,6 +126,18 @@ def categorize_transcription(transcription_string: str, user_id: str):
             "error": f"Unsupported model '{model_to_use}'",
             "success": False
         }
+
+
+def get_user_model_from_db_cached(user_id: str):
+    # If we have this user_id's model in cache, return it
+    if user_id in user_model_cache:
+        app.logger.info("Returning cached user model")
+        return user_model_cache[user_id]
+    
+    # Otherwise, get from DB (the slow call), cache it, then return
+    model_to_use = get_user_model_from_db(user_id)
+    user_model_cache[user_id] = model_to_use
+    return model_to_use
 
 
 def get_user_model_from_db(user_id: str) -> Literal["openai", "anthropic"]:

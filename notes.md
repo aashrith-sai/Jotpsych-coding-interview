@@ -10,3 +10,12 @@ var name OPENAI_API_KEY and I am setting it inside the app.py using dot env and 
 I am also forcing the llm to return in json format and validating the format.
 
 I am also validating the genre if they belong to the expected ones or return exception if not.
+
+
+PART-7
+
+I have implemented two maps that would be helpful for the cacheing mechanism. The first one stores the users preferred llm
+and the second one stores the respones of the user and the transcript. 
+
+The function get_user_model_from_db_cached will check if the llm prefernce is given already or not. The caching mechanism for the
+response is implemented in the categorize_transcription itself. 
