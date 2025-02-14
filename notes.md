@@ -31,3 +31,7 @@ and the second one stores the respones of the user and the transcript.
 
 The function get_user_model_from_db_cached will check if the llm prefernce is given already or not. The caching mechanism for the
 response is implemented in the categorize_transcription itself. 
+
+PART-8
+
+Added styling in index.css file

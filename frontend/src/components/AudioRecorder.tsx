@@ -16,7 +16,7 @@ const AudioRecorder = ({ onTranscriptionComplete }: {
   const [finalRecordingTime, setFinalRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const MAX_RECORDING_TIME = 5;
+  const MAX_RECORDING_TIME = 10;
 
   const stopRecording = () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
