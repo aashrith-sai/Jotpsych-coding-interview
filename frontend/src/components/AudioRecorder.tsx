@@ -7,7 +7,7 @@ interface TranscriptionData {
 }
 
 const AudioRecorder = ({ onTranscriptionComplete }: { 
-  onTranscriptionComplete: (transcription: string) => void 
+  onTranscriptionComplete: (transcription: string, category: string) => void 
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -72,7 +72,7 @@ const AudioRecorder = ({ onTranscriptionComplete }: {
           }
 
           if (response.data) {
-            onTranscriptionComplete(response.data.transcription);
+            onTranscriptionComplete(response.data.transcription, response.data.category || "");
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
