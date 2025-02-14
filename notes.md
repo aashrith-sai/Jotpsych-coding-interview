@@ -35,3 +35,13 @@ response is implemented in the categorize_transcription itself.
 PART-8
 
 Added styling in index.css file
+
+
+Additional Notes
+
+I have not added the parallel processing and user identity management due to not having enough time. I would have implemented
+a background worker along with the functionality to fetch the status of each job. In production I would have used a queue that can store is dynamically scalable.
+
+I would have added a transcribing loading bar for each request and show them in frontend
+
+I would have implemented a frontend cache for user id management.
