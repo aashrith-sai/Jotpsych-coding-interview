@@ -1,5 +1,14 @@
 THIS IS THE MOST IMPORTANT FILE IN THE ENTIRE REPO! HUMAN WRITING ONLY! NO AI ALLOWED!
 
+PART-1 
+In the useEffect hook, the recordingTime state was not passed. As a result, there was no increase in the counter. Once we add this, the issue of increment and automatic stopping is resolved. Also, we can set the recordingTime to zero to after the recording is stopped to be able to record again. 
+
+
+PART-2
+To acheive this, I introduced a new state (isTranscribing) to track if the transcription is in progress.
+I Set isTranscribing to true while sending the audio for transcription. I added a loading message 
+while transcription is ongoing. I have reset isTranscribing to false when transcription is complete.
+
 
 PART-6
 
